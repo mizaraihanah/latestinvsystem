@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add reset button functionality
     document.getElementById('resetBtn').addEventListener('click', function() {
+        document.getElementById('log_type').value = 'all';
         document.getElementById('user').value = '';
         document.getElementById('action').value = '';
         document.getElementById('date_from').value = '';
@@ -28,6 +29,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if (dateTo.value && this.value && this.value > dateTo.value) {
             dateTo.value = this.value;
         }
+    });
+    
+    // Update action filter options based on log type selection
+    const logTypeSelect = document.getElementById('log_type');
+    const actionSelect = document.getElementById('action');
+    
+    logTypeSelect.addEventListener('change', function() {
+        const selectedLogType = this.value;
+        
+        // You could implement AJAX to fetch filtered actions, but for simplicity
+        // we'll keep all actions in the dropdown and just make the form submit
+        
+        // Clear action selection when log type changes
+        actionSelect.value = '';
     });
 });
 
@@ -100,6 +115,7 @@ function formatDate(dateString) {
  */
 function exportLogsToCSV() {
     // Get current filter values
+    const logTypeFilter = document.getElementById('log_type').value;
     const userFilter = document.getElementById('user').value;
     const actionFilter = document.getElementById('action').value;
     const dateFrom = document.getElementById('date_from').value;
@@ -107,6 +123,10 @@ function exportLogsToCSV() {
     
     // Build export URL with current filters
     let exportUrl = 'admin_logsdisplay.php?export=csv';
+    
+    if (logTypeFilter) {
+        exportUrl += `&log_type=${encodeURIComponent(logTypeFilter)}`;
+    }
     
     if (userFilter) {
         exportUrl += `&user=${encodeURIComponent(userFilter)}`;
