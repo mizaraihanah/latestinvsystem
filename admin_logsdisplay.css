@@ -247,3 +247,64 @@
         min-width: 800px;
     }
 }
+
+/* NEW STYLES FOR INVENTORY LOGS INTEGRATION */
+
+/* Log Type Badges */
+.log-type {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.log-type.admin {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.log-type.inventory {
+    background-color: #e3f2fd;
+    color: #0d47a1;
+}
+
+/* Inventory Action Badges */
+.action-inventory.action-add_product,
+.action-inventory.action-update_product,
+.action-inventory.action-stock_update,
+.action-inventory.action-create_order {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.action-inventory.action-delete_product,
+.action-inventory.action-delete_category,
+.action-inventory.action-delete_supplier {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.action-inventory.action-update_order {
+    background-color: #fff8e1;
+    color: #f57f17;
+}
+
+/* Alternating row backgrounds for better readability */
+.admin-log-row {
+    background-color: rgba(232, 245, 233, 0.05);
+}
+
+.inventory-log-row {
+    background-color: rgba(227, 242, 253, 0.05);
+}
+
+/* Pagination note */
+.pagination-note {
+    text-align: center;
+    padding: 10px;
+    color: #666;
+    font-style: italic;
+    font-size: 13px;
+    border-top: 1px solid #eee;
+}
