@@ -31,164 +31,276 @@ $userFilter = isset($_GET['user']) ? $_GET['user'] : '';
 $actionFilter = isset($_GET['action']) ? $_GET['action'] : '';
 $dateFrom = isset($_GET['date_from']) ? $_GET['date_from'] : '';
 $dateTo = isset($_GET['date_to']) ? $_GET['date_to'] : '';
+$logTypeFilter = isset($_GET['log_type']) ? $_GET['log_type'] : 'all'; // Add log type filter
 
-// Build the query with potential filters
-$query = "SELECT l.*, 
-            a.fullName AS admin_name, 
-            u.fullName AS affected_user_name
-          FROM admin_logs l
-          LEFT JOIN users a ON l.admin_id = a.userID
-          LEFT JOIN users u ON l.affected_user = u.userID
-          WHERE 1=1";
+// Build the admin logs query
+$admin_query = "SELECT l.*, 
+                a.fullName AS admin_name, 
+                u.fullName AS affected_user_name,
+                'admin' AS log_type
+              FROM admin_logs l
+              LEFT JOIN users a ON l.admin_id = a.userID
+              LEFT JOIN users u ON l.affected_user = u.userID
+              WHERE 1=1";
 
-$params = [];
-$types = "";
+// Build the inventory logs query
+$inventory_query = "SELECT l.*,
+                     u.fullName AS user_name,
+                     'inventory' AS log_type
+                   FROM inventory_logs l
+                   LEFT JOIN users u ON l.user_id = u.userID
+                   WHERE 1=1";
 
+$admin_params = [];
+$admin_types = "";
+$inventory_params = [];
+$inventory_types = "";
+
+// Apply filters to admin query
 if (!empty($userFilter)) {
-    $query .= " AND (l.admin_id = ? OR l.affected_user = ?)";
-    $params[] = $userFilter;
-    $params[] = $userFilter;
-    $types .= "ss";
+    $admin_query .= " AND (l.admin_id = ? OR l.affected_user = ?)";
+    $admin_params[] = $userFilter;
+    $admin_params[] = $userFilter;
+    $admin_types .= "ss";
 }
 
 if (!empty($actionFilter)) {
-    $query .= " AND l.action = ?";
-    $params[] = $actionFilter;
-    $types .= "s";
+    $admin_query .= " AND l.action = ?";
+    $admin_params[] = $actionFilter;
+    $admin_types .= "s";
 }
 
 if (!empty($dateFrom)) {
-    $query .= " AND DATE(l.timestamp) >= ?";
-    $params[] = $dateFrom;
-    $types .= "s";
+    $admin_query .= " AND DATE(l.timestamp) >= ?";
+    $admin_params[] = $dateFrom;
+    $admin_types .= "s";
 }
 
 if (!empty($dateTo)) {
-    $query .= " AND DATE(l.timestamp) <= ?";
-    $params[] = $dateTo;
-    $types .= "s";
+    $admin_query .= " AND DATE(l.timestamp) <= ?";
+    $admin_params[] = $dateTo;
+    $admin_types .= "s";
 }
 
-$query .= " ORDER BY l.timestamp DESC";
-
-// Prepare and execute the query
-$stmt = $conn->prepare($query);
-if (!empty($params)) {
-    $stmt->bind_param($types, ...$params);
+// Apply filters to inventory query
+if (!empty($userFilter)) {
+    $inventory_query .= " AND l.user_id = ?";
+    $inventory_params[] = $userFilter;
+    $inventory_types .= "s";
 }
-$stmt->execute();
-$result_logs = $stmt->get_result();
-$stmt->close();
 
-// Get distinct actions for the filter dropdown
-$action_query = "SELECT DISTINCT action FROM admin_logs ORDER BY action";
+if (!empty($actionFilter)) {
+    $inventory_query .= " AND l.action = ?";
+    $inventory_params[] = $actionFilter;
+    $inventory_types .= "s";
+}
+
+if (!empty($dateFrom)) {
+    $inventory_query .= " AND DATE(l.timestamp) >= ?";
+    $inventory_params[] = $dateFrom;
+    $inventory_types .= "s";
+}
+
+if (!empty($dateTo)) {
+    $inventory_query .= " AND DATE(l.timestamp) <= ?";
+    $inventory_params[] = $dateTo;
+    $inventory_types .= "s";
+}
+
+// Get admin logs if needed
+$result_admin_logs = null;
+if ($logTypeFilter == 'admin' || $logTypeFilter == 'all') {
+    $stmt = $conn->prepare($admin_query . " ORDER BY l.timestamp DESC");
+    if (!empty($admin_types)) {
+        $stmt->bind_param($admin_types, ...$admin_params);
+    }
+    $stmt->execute();
+    $result_admin_logs = $stmt->get_result();
+    $stmt->close();
+}
+
+// Get inventory logs if needed
+$result_inventory_logs = null;
+if ($logTypeFilter == 'inventory' || $logTypeFilter == 'all') {
+    $stmt = $conn->prepare($inventory_query . " ORDER BY l.timestamp DESC");
+    if (!empty($inventory_types)) {
+        $stmt->bind_param($inventory_types, ...$inventory_params);
+    }
+    $stmt->execute();
+    $result_inventory_logs = $stmt->get_result();
+    $stmt->close();
+}
+
+// Get distinct actions for the filter dropdown (combined from both tables)
+$action_query = "SELECT DISTINCT action FROM admin_logs 
+                UNION 
+                SELECT DISTINCT action FROM inventory_logs 
+                ORDER BY action";
 $result_actions = $conn->query($action_query);
 
-// Get users for the filter dropdown
+// Get users for the filter dropdown (all user roles)
 $user_query = "SELECT DISTINCT u.userID, u.fullName, u.role 
                FROM users u
-               WHERE u.userID IN (SELECT admin_id FROM admin_logs)
-               OR u.userID IN (SELECT affected_user FROM admin_logs WHERE affected_user IS NOT NULL)
                ORDER BY u.role, u.fullName";
 $result_users = $conn->query($user_query);
 
-// Get summary statistics
+// Get summary statistics - FIXED VERSION
 $stats_query = "SELECT 
-                  COUNT(*) as total_logs,
-                  COUNT(DISTINCT admin_id) as total_admins,
-                  COUNT(DISTINCT affected_user) as total_affected_users,
-                  COUNT(DISTINCT DATE(timestamp)) as total_days
-                FROM admin_logs";
+                  (SELECT COUNT(*) FROM admin_logs) + (SELECT COUNT(*) FROM inventory_logs) as total_logs,
+                  (SELECT COUNT(*) FROM users WHERE role = 'Administrator') as total_admins,
+                  (SELECT COUNT(*) FROM users WHERE role = 'Inventory Manager') as total_managers,
+                  (SELECT COUNT(*) FROM users WHERE role = 'Bakery Staff') as total_staff,
+                  (SELECT COUNT(DISTINCT DATE(timestamp)) FROM (
+                    SELECT timestamp FROM admin_logs UNION SELECT timestamp FROM inventory_logs
+                  ) as combined_dates) as total_days";
 $stats_result = $conn->query($stats_query);
 $stats = $stats_result->fetch_assoc();
 
-// Get top actions
-$top_actions_query = "SELECT action, COUNT(*) as count 
-                     FROM admin_logs 
+// Get top actions (combined from both tables)
+$top_actions_query = "SELECT action, COUNT(*) as count FROM (
+                        SELECT action FROM admin_logs
+                        UNION ALL
+                        SELECT action FROM inventory_logs
+                     ) as combined_logs 
                      GROUP BY action 
                      ORDER BY count DESC 
                      LIMIT 5";
 $top_actions_result = $conn->query($top_actions_query);
 
-// Export logs functionality
+// Export logs functionality - modified to include both log types
 if (isset($_GET['export']) && $_GET['export'] == 'csv') {
-    // Create a new query with the same filters for export
-    $export_query = "SELECT 
-                       l.log_id, 
-                       l.admin_id, 
-                       a.fullName AS admin_name,
-                       l.action, 
-                       l.affected_user,
-                       u.fullName AS affected_user_name,
-                       l.action_details,
-                       l.ip_address,
-                       l.timestamp
-                    FROM admin_logs l
-                    LEFT JOIN users a ON l.admin_id = a.userID
-                    LEFT JOIN users u ON l.affected_user = u.userID
-                    WHERE 1=1";
-    
-    if (!empty($userFilter)) {
-        $export_query .= " AND (l.admin_id = '$userFilter' OR l.affected_user = '$userFilter')";
-    }
-    
-    if (!empty($actionFilter)) {
-        $export_query .= " AND l.action = '$actionFilter'";
-    }
-    
-    if (!empty($dateFrom)) {
-        $export_query .= " AND DATE(l.timestamp) >= '$dateFrom'";
-    }
-    
-    if (!empty($dateTo)) {
-        $export_query .= " AND DATE(l.timestamp) <= '$dateTo'";
-    }
-    
-    $export_query .= " ORDER BY l.timestamp DESC";
-    
-    $export_result = $conn->query($export_query);
-    
-    // Set headers for CSV download
+    // Create headers for CSV
     header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename=admin_logs_export.csv');
+    header('Content-Disposition: attachment; filename=combined_logs_export.csv');
     
     // Create a file pointer connected to the output stream
     $output = fopen('php://output', 'w');
     
-    // Output the column headings
+    // Output column headings
     fputcsv($output, [
         'Log ID', 
-        'Admin ID', 
-        'Admin Name', 
+        'Log Type',
+        'User ID', 
+        'User Name', 
         'Action', 
-        'Affected User ID',
-        'Affected User Name',
+        'Affected Entity',
+        'Affected Entity Name',
         'Action Details',
         'IP Address',
         'Timestamp'
     ]);
     
-    // Fetch and output each row
-    while ($row = $export_result->fetch_assoc()) {
-        fputcsv($output, [
-            $row['log_id'],
-            $row['admin_id'],
-            $row['admin_name'],
-            $row['action'],
-            $row['affected_user'],
-            $row['affected_user_name'],
-            $row['action_details'],
-            $row['ip_address'],
-            $row['timestamp']
-        ]);
+    // For admin logs
+    if ($logTypeFilter == 'admin' || $logTypeFilter == 'all') {
+        // Recreate admin logs query for export
+        $export_admin_query = "SELECT 
+                           l.log_id, 
+                           l.admin_id AS user_id, 
+                           a.fullName AS user_name,
+                           l.action, 
+                           l.affected_user AS affected_entity,
+                           u.fullName AS affected_entity_name,
+                           l.action_details,
+                           l.ip_address,
+                           l.timestamp
+                        FROM admin_logs l
+                        LEFT JOIN users a ON l.admin_id = a.userID
+                        LEFT JOIN users u ON l.affected_user = u.userID
+                        WHERE 1=1";
+        
+        // Apply filters
+        if (!empty($userFilter)) {
+            $export_admin_query .= " AND (l.admin_id = '$userFilter' OR l.affected_user = '$userFilter')";
+        }
+        
+        if (!empty($actionFilter)) {
+            $export_admin_query .= " AND l.action = '$actionFilter'";
+        }
+        
+        if (!empty($dateFrom)) {
+            $export_admin_query .= " AND DATE(l.timestamp) >= '$dateFrom'";
+        }
+        
+        if (!empty($dateTo)) {
+            $export_admin_query .= " AND DATE(l.timestamp) <= '$dateTo'";
+        }
+        
+        $export_admin_result = $conn->query($export_admin_query);
+        
+        // Output admin log data
+        while ($row = $export_admin_result->fetch_assoc()) {
+            fputcsv($output, [
+                $row['log_id'],
+                'Admin',
+                $row['user_id'],
+                $row['user_name'],
+                $row['action'],
+                $row['affected_entity'],
+                $row['affected_entity_name'],
+                $row['action_details'],
+                $row['ip_address'],
+                $row['timestamp']
+            ]);
+        }
+    }
+    
+    // For inventory logs
+    if ($logTypeFilter == 'inventory' || $logTypeFilter == 'all') {
+        // Recreate inventory logs query for export
+        $export_inventory_query = "SELECT 
+                           l.log_id, 
+                           l.user_id, 
+                           u.fullName AS user_name,
+                           l.action, 
+                           l.item_id AS affected_entity,
+                           '' AS affected_entity_name,
+                           l.action_details,
+                           l.ip_address,
+                           l.timestamp
+                        FROM inventory_logs l
+                        LEFT JOIN users u ON l.user_id = u.userID
+                        WHERE 1=1";
+        
+        // Apply filters
+        if (!empty($userFilter)) {
+            $export_inventory_query .= " AND l.user_id = '$userFilter'";
+        }
+        
+        if (!empty($actionFilter)) {
+            $export_inventory_query .= " AND l.action = '$actionFilter'";
+        }
+        
+        if (!empty($dateFrom)) {
+            $export_inventory_query .= " AND DATE(l.timestamp) >= '$dateFrom'";
+        }
+        
+        if (!empty($dateTo)) {
+            $export_inventory_query .= " AND DATE(l.timestamp) <= '$dateTo'";
+        }
+        
+        $export_inventory_result = $conn->query($export_inventory_query);
+        
+        // Output inventory log data
+        while ($row = $export_inventory_result->fetch_assoc()) {
+            fputcsv($output, [
+                $row['log_id'],
+                'Inventory',
+                $row['user_id'],
+                $row['user_name'],
+                $row['action'],
+                $row['affected_entity'],
+                $row['affected_entity_name'],
+                $row['action_details'],
+                $row['ip_address'],
+                $row['timestamp']
+            ]);
+        }
     }
     
     // Close the connection and exit
     $conn->close();
     exit();
 }
-
-$conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -196,7 +308,7 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Logs - Roti Seri Bakery</title>
+    <title>System Activity Logs - Roti Seri Bakery</title>
     <link rel="stylesheet" href="admin_dashboard.css">
     <link rel="stylesheet" href="sidebar.css">
     <link rel="stylesheet" href="admin_logsdisplay.css">
@@ -249,7 +361,7 @@ $conn->close();
     <!-- Main Content -->
     <div class="main-content">
         <div class="dashboard-header">
-            <h1>Admin Activity Logs</h1>
+            <h1>System Activity Logs</h1>
             <p>Welcome, <?php echo htmlspecialchars($fullName); ?>!</p>
         </div>
 
@@ -270,28 +382,28 @@ $conn->close();
                     <i class="fas fa-users-cog"></i>
                 </div>
                 <div class="stat-details">
-                    <h3>Active Admins</h3>
+                    <h3>Admins</h3>
                     <p><?php echo number_format($stats['total_admins']); ?></p>
                 </div>
             </div>
             
             <div class="stat-card">
                 <div class="stat-icon">
-                    <i class="fas fa-user-edit"></i>
+                    <i class="fas fa-user-tie"></i>
                 </div>
                 <div class="stat-details">
-                    <h3>Affected Users</h3>
-                    <p><?php echo number_format($stats['total_affected_users']); ?></p>
+                    <h3>Managers</h3>
+                    <p><?php echo number_format($stats['total_managers']); ?></p>
                 </div>
             </div>
             
             <div class="stat-card">
                 <div class="stat-icon">
-                    <i class="fas fa-calendar-alt"></i>
+                    <i class="fas fa-user"></i>
                 </div>
                 <div class="stat-details">
-                    <h3>Activity Days</h3>
-                    <p><?php echo number_format($stats['total_days']); ?></p>
+                    <h3>Staff</h3>
+                    <p><?php echo number_format($stats['total_staff']); ?></p>
                 </div>
             </div>
         </div>
@@ -310,7 +422,16 @@ $conn->close();
             <form method="GET" action="admin_logsdisplay.php" id="filterForm">
                 <div class="filter-row">
                     <div class="filter-group">
-                        <label for="user">Admin/User:</label>
+                        <label for="log_type">Log Type:</label>
+                        <select name="log_type" id="log_type">
+                            <option value="all" <?php echo ($logTypeFilter == 'all') ? 'selected' : ''; ?>>All Logs</option>
+                            <option value="admin" <?php echo ($logTypeFilter == 'admin') ? 'selected' : ''; ?>>Admin Logs</option>
+                            <option value="inventory" <?php echo ($logTypeFilter == 'inventory') ? 'selected' : ''; ?>>Inventory Logs</option>
+                        </select>
+                    </div>
+                
+                    <div class="filter-group">
+                        <label for="user">User:</label>
                         <select name="user" id="user">
                             <option value="">All Users</option>
                             <?php while ($user = $result_users->fetch_assoc()): ?>
@@ -352,6 +473,7 @@ $conn->close();
                     <button type="submit" class="filter-btn apply-btn"><i class="fas fa-search"></i> Apply Filters</button>
                     <button type="button" id="resetBtn" class="filter-btn reset-btn"><i class="fas fa-sync"></i> Reset Filters</button>
                     <a href="admin_logsdisplay.php?export=csv<?php 
+                        echo '&log_type=' . urlencode($logTypeFilter);
                         echo (!empty($userFilter)) ? '&user=' . urlencode($userFilter) : '';
                         echo (!empty($actionFilter)) ? '&action=' . urlencode($actionFilter) : '';
                         echo (!empty($dateFrom)) ? '&date_from=' . urlencode($dateFrom) : '';
@@ -366,37 +488,86 @@ $conn->close();
             <table class="logs-table">
                 <thead>
                     <tr>
+                        <th>Log Type</th>
                         <th>Date & Time</th>
-                        <th>Admin</th>
+                        <th>User</th>
                         <th>Action</th>
-                        <th>Affected User</th>
+                        <th>Affected Entity</th>
                         <th>Details</th>
                         <th>IP Address</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if ($result_logs->num_rows > 0): ?>
-                        <?php while ($log = $result_logs->fetch_assoc()): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($log['timestamp']); ?></td>
-                                <td><?php echo htmlspecialchars($log['admin_name'] ?? $log['admin_id']); ?></td>
-                                <td>
-                                    <span class="action-badge action-<?php echo strtolower($log['action']); ?>">
-                                        <?php echo ucwords(str_replace('_', ' ', $log['action'])); ?>
-                                    </span>
-                                </td>
-                                <td><?php echo htmlspecialchars($log['affected_user_name'] ?? $log['affected_user'] ?? 'N/A'); ?></td>
-                                <td><?php echo htmlspecialchars($log['action_details'] ?? 'No details'); ?></td>
-                                <td><?php echo htmlspecialchars($log['ip_address']); ?></td>
-                            </tr>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="6" class="no-data">No logs found matching your filter criteria</td>
-                        </tr>
-                    <?php endif; ?>
+                    <?php 
+                    // Initialize a counter for displaying rows
+                    $logCount = 0;
+                    $maxLogs = 1000; // Limit to prevent performance issues
+                    
+                    // Create a combined result set by timestamp
+                    $combined_logs = [];
+                    
+                    // Add admin logs if applicable
+                    if (isset($result_admin_logs) && $result_admin_logs->num_rows > 0) {
+                        while ($log = $result_admin_logs->fetch_assoc()) {
+                            $log['log_source'] = 'admin';
+                            $combined_logs[] = $log;
+                        }
+                    }
+                    
+                    // Add inventory logs if applicable
+                    if (isset($result_inventory_logs) && $result_inventory_logs->num_rows > 0) {
+                        while ($log = $result_inventory_logs->fetch_assoc()) {
+                            $log['log_source'] = 'inventory';
+                            $combined_logs[] = $log;
+                        }
+                    }
+                    
+                    // Sort combined logs by timestamp (newest first)
+                    usort($combined_logs, function($a, $b) {
+                        return strtotime($b['timestamp']) - strtotime($a['timestamp']);
+                    });
+                    
+                    // Display logs
+                    if (count($combined_logs) > 0) {
+                        foreach ($combined_logs as $log) {
+                            if ($logCount < $maxLogs) {
+                                if ($log['log_source'] == 'admin') {
+                                    echo "<tr class='admin-log-row'>";
+                                    echo "<td><span class='log-type admin'>Admin</span></td>";
+                                    echo "<td>" . htmlspecialchars($log['timestamp']) . "</td>";
+                                    echo "<td>" . htmlspecialchars($log['admin_name'] ?? $log['admin_id']) . "</td>";
+                                    echo "<td><span class='action-badge action-" . strtolower($log['action']) . "'>" . 
+                                         ucwords(str_replace('_', ' ', $log['action'])) . "</span></td>";
+                                    echo "<td>" . htmlspecialchars($log['affected_user_name'] ?? $log['affected_user'] ?? 'N/A') . "</td>";
+                                    echo "<td>" . htmlspecialchars($log['action_details'] ?? 'No details') . "</td>";
+                                    echo "<td>" . htmlspecialchars($log['ip_address']) . "</td>";
+                                    echo "</tr>";
+                                } else {
+                                    echo "<tr class='inventory-log-row'>";
+                                    echo "<td><span class='log-type inventory'>Inventory</span></td>";
+                                    echo "<td>" . htmlspecialchars($log['timestamp']) . "</td>";
+                                    echo "<td>" . htmlspecialchars($log['user_name'] ?? $log['user_id']) . "</td>";
+                                    echo "<td><span class='action-badge action-inventory action-" . strtolower($log['action']) . "'>" . 
+                                         ucwords(str_replace('_', ' ', $log['action'])) . "</span></td>";
+                                    echo "<td>" . htmlspecialchars($log['item_id'] ?? 'N/A') . "</td>";
+                                    echo "<td>" . htmlspecialchars($log['action_details'] ?? 'No details') . "</td>";
+                                    echo "<td>" . htmlspecialchars($log['ip_address']) . "</td>";
+                                    echo "</tr>";
+                                }
+                                $logCount++;
+                            } else {
+                                break;
+                            }
+                        }
+                    } else {
+                        echo "<tr><td colspan='7' class='no-data'>No logs found matching your filter criteria</td></tr>";
+                    }
+                    ?>
                 </tbody>
             </table>
+            <?php if ($logCount >= $maxLogs): ?>
+                <div class="pagination-note">Showing <?php echo $maxLogs; ?> most recent logs. Use filters to narrow results.</div>
+            <?php endif; ?>
         </div>
     </div>
 
