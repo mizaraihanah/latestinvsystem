@@ -1,0 +1,474 @@
+/* Staff Suppliers Management Styles */
+
+/* Alert Messages */
+.alert {
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+}
+
+.alert i {
+    font-size: 18px;
+}
+
+.alert-success {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    border-left: 4px solid #4caf50;
+}
+
+.alert-danger {
+    background-color: #feebee;
+    color: #c62828;
+    border-left: 4px solid #f44336;
+}
+
+.close-alert {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+}
+
+.close-alert:hover {
+    opacity: 1;
+}
+
+/* Supplier Actions */
+.supplier-actions {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.search-filters {
+    flex: 1;
+    min-width: 300px;
+}
+
+.search-bar {
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 10px 15px;
+    padding-right: 40px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.search-bar button {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 40px;
+    background: none;
+    border: none;
+    color: #555;
+    cursor: pointer;
+}
+
+.add-supplier-btn {
+    padding: 10px 15px;
+    background-color: #0561FC;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.3s ease;
+}
+
+.add-supplier-btn:hover {
+    background-color: #0450c1;
+}
+
+/* Supplier Table */
+.supplier-table-container {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    overflow: auto;
+    margin-bottom: 20px;
+}
+
+.supplier-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.supplier-table th, 
+.supplier-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eaeaea;
+}
+
+.supplier-table th {
+    background-color: #f5f5f7;
+    font-weight: 500;
+    color: #555;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.supplier-table tr:last-child td {
+    border-bottom: none;
+}
+
+.supplier-table tr:hover td {
+    background-color: #f5f5f7;
+}
+
+.no-data {
+    padding: 30px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.action-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.view-btn {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.view-btn:hover {
+    background-color: #bbdefb;
+}
+
+.edit-btn {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.edit-btn:hover {
+    background-color: #c8e6c9;
+}
+
+.delete-btn {
+    background-color: #feebee;
+    color: #c62828;
+}
+
+.delete-btn:hover {
+    background-color: #ffcdd2;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 50px auto;
+    max-width: 600px;
+    width: 90%;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    animation: modalFadeIn 0.3s;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #eaeaea;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.close {
+    font-size: 24px;
+    color: #aaa;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.close:hover {
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #eaeaea;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #555;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* Required field indicator */
+.required {
+    color: #f44336;
+}
+
+/* Button Styles */
+.save-btn, .cancel-btn, .delete-btn, .close-btn {
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.save-btn {
+    background-color: #0561FC;
+    color: white;
+    border: none;
+}
+
+.save-btn:hover {
+    background-color: #0450c1;
+}
+
+.cancel-btn {
+    background-color: #f5f5f7;
+    color: #555;
+    border: 1px solid #ddd;
+}
+
+.cancel-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.delete-btn {
+    background-color: #f44336;
+    color: white;
+    border: none;
+}
+
+.delete-btn:hover {
+    background-color: #d32f2f;
+}
+
+.close-btn {
+    background-color: #f5f5f7;
+    color: #555;
+    border: 1px solid #ddd;
+}
+
+.close-btn:hover {
+    background-color: #e0e0e0;
+}
+
+/* Supplier Details View */
+.supplier-details {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.detail-row {
+    display: flex;
+    padding: 8px 0;
+    border-bottom: 1px solid #eaeaea;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    flex: 1;
+    font-weight: 500;
+    color: #555;
+}
+
+.detail-value {
+    flex: 2;
+    color: #333;
+}
+
+.highlighted-text {
+    font-weight: 600;
+    color: #0561FC;
+}
+
+.warning-text {
+    color: #f44336;
+    font-style: italic;
+}
+
+/* Toast Notification */
+.toast-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    background-color: white;
+    color: #333;
+    border-radius: 6px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 10000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: transform 0.3s, opacity 0.3s;
+    max-width: 300px;
+}
+
+.toast-notification.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.toast-notification i {
+    font-size: 18px;
+}
+
+.toast-notification.success {
+    border-left: 4px solid #4CAF50;
+}
+
+.toast-notification.success i {
+    color: #4CAF50;
+}
+
+.toast-notification.error {
+    border-left: 4px solid #F44336;
+}
+
+.toast-notification.error i {
+    color: #F44336;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .supplier-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .modal-content {
+        margin: 20px auto;
+        width: 95%;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer button {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .detail-row {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .detail-label {
+        font-weight: 700;
+    }
+}
